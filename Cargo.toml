@@ -1,0 +1,10 @@
+[package]
+name = "redger"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rwgfx = { path = "../rwgfx", version = "0.1.0" }
+rwlog = { path = "../rwlog", version = "0.1.0" }
