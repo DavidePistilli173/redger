@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4.26"
+crossbeam = "0.8.2"
 rwgfx = { path = "../rwgfx", version = "0.1.0" }
 rwlog = { path = "../rwlog", version = "0.1.0" }
