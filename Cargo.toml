@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = "0.4.26"
+chrono = "0.4.31"
 crossbeam = "0.8.2"
+pollster = "0.3.0"
 rwgfx = { path = "../rwgfx", version = "0.1.0" }
 rwlog = { path = "../rwlog", version = "0.1.0" }
