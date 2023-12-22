@@ -1,7 +1,9 @@
+use cgmath::{Point2, Vector2};
 use rwgfx::context::Context;
 use rwgfx::error::RenderError;
-use winit::event::WindowEvent;
-use winit::event_loop::EventLoop;
+use rwui::button::Button;
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
 fn main() {
@@ -25,11 +27,28 @@ fn main() {
     .unwrap_or_else(|e| {
         rwlog::rel_fatal!(&logger, "Failed to create application: {e}.");
     });
-    run(logger, window, event_loop, context);
+
+    let button = Button::new(
+        &context,
+        Point2::<f32> { x: 350.0, y: 250.0 },
+        Vector2::<f32> { x: 100.0, y: 100.0 },
+        -75.0,
+        [0.5, 0.05, 0.05, 1.0],
+    );
+
+    run(logger, window, event_loop, context, button);
 }
 
 /// Run the main loop of the application.
-fn run(logger: rwlog::sender::Logger, window: Window, event_loop: EventLoop, mut context: Context) {
+fn run(
+    logger: rwlog::sender::Logger,
+    window: Window,
+    event_loop: EventLoop<()>,
+    mut context: Context,
+    mut button: Button,
+) {
+    let mut last_update_time = chrono::Local::now();
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
@@ -39,31 +58,31 @@ fn run(logger: rwlog::sender::Logger, window: Window, event_loop: EventLoop, mut
                 window_id,
                 ref event,
             } => {
-                if window_id == window.id() && !app.propagate_event(&event) {
+                if window_id == window.id() && !button.consume_event(&event) {
                     match event {
                         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                         WindowEvent::Resized(physical_size) => {
-                            app.resize(physical_size.width, physical_size.height)
+                            context.resize(physical_size.width, physical_size.height)
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            app.resize(*new_inner_size.width, *new_inner_size.height)
+                            context.resize(new_inner_size.width, new_inner_size.height)
                         }
                         _ => (),
                     }
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                match app.render() {
+                match context.render(|_id, frame_context| button.draw(frame_context)) {
                     Ok(_) => (),
                     Err(RenderError::SurfaceInvalid) => {
-                        app.resize(window.inner_size().width, window.inner_size().height)
+                        context.resize(window.inner_size().width, window.inner_size().height)
                     }
                     Err(RenderError::OutOfMemory) => {
                         rwlog::rel_err!(&logger, "Not enough GPU memory!");
                         *control_flow = ControlFlow::Exit;
                     }
                     Err(RenderError::GraphicsDeviceNotResponding) => {
-                        rwlog::warn!(&logger, "{e}");
+                        rwlog::warn!(&logger, "Graphics device not responding.");
                     }
                 };
             }
@@ -74,6 +93,9 @@ fn run(logger: rwlog::sender::Logger, window: Window, event_loop: EventLoop, mut
         }
 
         // Update the application.
-        context.update();
+        let current_time = chrono::Local::now();
+        let delta_time = current_time - last_update_time;
+        last_update_time = current_time;
+        button.update(&delta_time);
     });
 }
