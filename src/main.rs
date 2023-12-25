@@ -1,10 +1,14 @@
 use cgmath::{Point2, Vector2};
 use rwgfx::context::Context;
 use rwgfx::error::RenderError;
-use rwui::button::Button;
+use rwui::button::{Button, ButtonDescriptor};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
+
+struct UiCtx {
+    toggle: bool,
+}
 
 fn main() {
     // Initialise the logger.
@@ -28,13 +32,29 @@ fn main() {
         rwlog::rel_fatal!(&logger, "Failed to create application: {e}.");
     });
 
-    let button = Button::new(
-        &context,
-        Point2::<f32> { x: 350.0, y: 250.0 },
-        Vector2::<f32> { x: 100.0, y: 100.0 },
-        -75.0,
-        [0.5, 0.05, 0.05, 1.0],
-    );
+    let button = Button::new(&ButtonDescriptor {
+        context: &context,
+        position: Point2::<f32> { x: 350.0, y: 250.0 },
+        size: Vector2::<f32> { x: 100.0, y: 100.0 },
+        z_index: -75.0,
+        back_colour: [0.5, 0.05, 0.05, 1.0],
+        on_press: None,
+        on_release: Some(|button: &mut Button<UiCtx>, data: &mut UiCtx| {
+            if data.toggle {
+                button.set_position_offset(Vector2::<f32> { x: 50.0, y: 50.0 });
+                button.set_size_offset(Vector2::<f32> {
+                    x: -100.0,
+                    y: -100.0,
+                });
+            } else {
+                button.set_position_offset(Vector2::<f32> { x: -50.0, y: -50.0 });
+                button.set_size_offset(Vector2::<f32> { x: 100.0, y: 100.0 });
+            }
+            data.toggle = !data.toggle;
+        }),
+        on_enter: None,
+        on_exit: None,
+    });
 
     run(logger, window, event_loop, context, button);
 }
@@ -45,9 +65,10 @@ fn run(
     window: Window,
     event_loop: EventLoop<()>,
     mut context: Context,
-    mut button: Button,
+    mut button: Button<UiCtx>,
 ) {
     let mut last_update_time = chrono::Local::now();
+    let mut uictx = UiCtx { toggle: false };
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -58,7 +79,7 @@ fn run(
                 window_id,
                 ref event,
             } => {
-                if window_id == window.id() && !button.consume_event(&event) {
+                if window_id == window.id() && !button.consume_event(&mut uictx, &event) {
                     match event {
                         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                         WindowEvent::Resized(physical_size) => {
