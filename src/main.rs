@@ -72,7 +72,7 @@ fn run(
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                match context.render(|queue, render_pass, _| button.draw(queue, render_pass)) {
+                match context.render(|frame_context, _| button.draw(frame_context)) {
                     Ok(_) => (),
                     Err(RenderError::SurfaceInvalid) => {
                         context.resize(window.inner_size().width, window.inner_size().height)
