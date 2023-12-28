@@ -37,7 +37,8 @@ fn main() {
         position: Point2::<f32> { x: 350.0, y: 250.0 },
         size: Vector2::<f32> { x: 100.0, y: 100.0 },
         z_index: -75.0,
-        back_colour: [0.5, 0.05, 0.05, 1.0],
+        back_colour: [0.05, 0.05, 0.05, 1.0],
+        texture_id: Some(rwgfx::texture::ID_HAMBURGER),
         on_press: None,
         on_release: Some(|button: &mut Button<UiCtx>, data: &mut UiCtx| {
             if data.toggle {
