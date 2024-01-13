@@ -27,6 +27,7 @@ fn main() {
         &window,
         window.inner_size().width,
         window.inner_size().height,
+        true,
     )
     .unwrap_or_else(|e| {
         rwlog::rel_fatal!(&logger, "Failed to create application: {e}.");
@@ -94,7 +95,9 @@ fn run(
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                match context.render(|frame_context, _| button.draw(frame_context)) {
+                match context
+                    .render(|render_pass, frame_context, _| button.draw(render_pass, frame_context))
+                {
                     Ok(_) => (),
                     Err(RenderError::SurfaceInvalid) => {
                         context.resize(window.inner_size().width, window.inner_size().height)
