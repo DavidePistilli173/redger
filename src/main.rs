@@ -1,6 +1,6 @@
 use cgmath::{Point2, Vector2};
-use rwgfx::context::Context;
 use rwgfx::error::RenderError;
+use rwgfx::renderer::Renderer;
 use rwui::button::{Button, ButtonDescriptor};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -22,7 +22,7 @@ fn main() {
         rwlog::rel_fatal!(&logger, "Failed to create window: {e}.");
     });
 
-    let context = rwgfx::context::Context::new(
+    let mut renderer = Renderer::new(
         logger.clone(),
         &window,
         window.inner_size().width,
@@ -33,32 +33,35 @@ fn main() {
         rwlog::rel_fatal!(&logger, "Failed to create application: {e}.");
     });
 
-    let button = Button::new(&ButtonDescriptor {
-        context: &context,
-        position: Point2::<f32> { x: 350.0, y: 250.0 },
-        size: Vector2::<f32> { x: 100.0, y: 100.0 },
-        z_index: -75.0,
-        back_colour: [0.05, 0.05, 0.05, 1.0],
-        texture_id: Some(rwgfx::texture::ID_HAMBURGER),
-        on_press: None,
-        on_release: Some(|button: &mut Button<UiCtx>, data: &mut UiCtx| {
-            if data.toggle {
-                button.set_position_offset(Vector2::<f32> { x: 50.0, y: 50.0 });
-                button.set_size_offset(Vector2::<f32> {
-                    x: -100.0,
-                    y: -100.0,
-                });
-            } else {
-                button.set_position_offset(Vector2::<f32> { x: -50.0, y: -50.0 });
-                button.set_size_offset(Vector2::<f32> { x: 100.0, y: 100.0 });
-            }
-            data.toggle = !data.toggle;
-        }),
-        on_enter: None,
-        on_exit: None,
-    });
+    let button = Button::new(
+        &mut renderer,
+        &ButtonDescriptor {
+            position: Point2::<f32> { x: 350.0, y: 250.0 },
+            size: Vector2::<f32> { x: 100.0, y: 100.0 },
+            z_index: -75.0,
+            back_colour: [0.05, 0.05, 0.05, 1.0],
+            texture_id: Some(rwgfx::texture::ID_HAMBURGER),
+            label: Some("PROVA".to_string()),
+            on_press: None,
+            on_release: Some(|button: &mut Button<UiCtx>, data: &mut UiCtx| {
+                if data.toggle {
+                    button.set_position_offset(Vector2::<f32> { x: 50.0, y: 50.0 });
+                    button.set_size_offset(Vector2::<f32> {
+                        x: -100.0,
+                        y: -100.0,
+                    });
+                } else {
+                    button.set_position_offset(Vector2::<f32> { x: -50.0, y: -50.0 });
+                    button.set_size_offset(Vector2::<f32> { x: 100.0, y: 100.0 });
+                }
+                data.toggle = !data.toggle;
+            }),
+            on_enter: None,
+            on_exit: None,
+        },
+    );
 
-    run(logger, window, event_loop, context, button);
+    run(logger, window, event_loop, renderer, button);
 }
 
 /// Run the main loop of the application.
@@ -66,7 +69,7 @@ fn run(
     logger: rwlog::sender::Logger,
     window: Window,
     event_loop: EventLoop<()>,
-    mut context: Context,
+    mut renderer: Renderer,
     mut button: Button<UiCtx>,
 ) {
     let mut last_update_time = chrono::Local::now();
@@ -85,22 +88,22 @@ fn run(
                     match event {
                         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                         WindowEvent::Resized(physical_size) => {
-                            context.resize(physical_size.width, physical_size.height)
+                            renderer.resize(physical_size.width, physical_size.height)
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            context.resize(new_inner_size.width, new_inner_size.height)
+                            renderer.resize(new_inner_size.width, new_inner_size.height)
                         }
                         _ => (),
                     }
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                match context
+                match renderer
                     .render(|render_pass, frame_context, _| button.draw(render_pass, frame_context))
                 {
                     Ok(_) => (),
                     Err(RenderError::SurfaceInvalid) => {
-                        context.resize(window.inner_size().width, window.inner_size().height)
+                        renderer.resize(window.inner_size().width, window.inner_size().height)
                     }
                     Err(RenderError::OutOfMemory) => {
                         rwlog::rel_err!(&logger, "Not enough GPU memory!");
