@@ -14,6 +14,12 @@ fn main() {
     // Initialise the logger.
     let logger = rwlog::sender::Logger::to_console(rwlog::Level::Trace);
 
+    rwlog::trace!(
+        &logger,
+        "Executable path: {}",
+        std::env::current_dir().unwrap().display()
+    );
+
     // Create a new event loop.
     let event_loop = EventLoop::new();
 
