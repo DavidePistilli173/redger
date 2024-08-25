@@ -1,4 +1,5 @@
 use cgmath::{Point2, Vector2};
+use rwgfx::asset;
 use rwgfx::error::RenderError;
 use rwgfx::renderer::Renderer;
 use rwui::button::{Button, ButtonDescriptor};
@@ -24,23 +25,35 @@ fn main() {
     let event_loop = EventLoop::new();
 
     // Create the window.
-    let window = WindowBuilder::new().build(&event_loop).unwrap_or_else(|e| {
-        rwlog::rel_fatal!(&logger, "Failed to create window: {e}.");
-    });
+    let window = WindowBuilder::new()
+        .with_title("REDGER")
+        .build(&event_loop)
+        .unwrap_or_else(|e| {
+            rwlog::fatal!(&logger, "Failed to create window: {e}.");
+            std::process::exit(1);
+        });
 
-    let mut renderer = Renderer::new(
+    let renderer = Renderer::new(
         logger.clone(),
         &window,
         window.inner_size().width,
         window.inner_size().height,
-        true,
     )
     .unwrap_or_else(|e| {
-        rwlog::rel_fatal!(&logger, "Failed to create application: {e}.");
+        rwlog::fatal!(&logger, "Failed to create application: {e}.");
+        std::process::exit(1);
     });
 
+    let mut asset_manager = asset::Manager::new_with_defaults(&logger, renderer.ctx())
+        .unwrap_or_else(|err| {
+            rwlog::fatal!(&logger, "Failed to create the asset manager: {err}.");
+            std::process::exit(1);
+        });
+
     let button = Button::new(
-        &mut renderer,
+        &logger,
+        &renderer,
+        &mut asset_manager,
         &ButtonDescriptor {
             position: Point2::<f32> { x: 350.0, y: 250.0 },
             size: Vector2::<f32> { x: 100.0, y: 100.0 },
@@ -67,7 +80,7 @@ fn main() {
         },
     );
 
-    run(logger, window, event_loop, renderer, button);
+    run(logger, window, event_loop, renderer, asset_manager, button);
 }
 
 /// Run the main loop of the application.
@@ -76,6 +89,7 @@ fn run(
     window: Window,
     event_loop: EventLoop<()>,
     mut renderer: Renderer,
+    mut asset_manager: asset::Manager,
     mut button: Button<UiCtx>,
 ) {
     let mut last_update_time = chrono::Local::now();
@@ -90,7 +104,7 @@ fn run(
                 window_id,
                 ref event,
             } => {
-                if window_id == window.id() && !button.consume_event(&mut uictx, &event) {
+                if window_id == window.id() && !button.on_event(&mut uictx, &event) {
                     match event {
                         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                         WindowEvent::Resized(physical_size) => {
@@ -104,21 +118,20 @@ fn run(
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                match renderer
-                    .render(|render_pass, frame_context, _| button.draw(render_pass, frame_context))
-                {
-                    Ok(_) => (),
-                    Err(RenderError::SurfaceInvalid) => {
-                        renderer.resize(window.inner_size().width, window.inner_size().height)
+                if let Err(err) = renderer.draw(&mut asset_manager, &[&button]) {
+                    match err {
+                        RenderError::SurfaceInvalid => {
+                            renderer.resize(window.inner_size().width, window.inner_size().height)
+                        }
+                        RenderError::OutOfMemory => {
+                            rwlog::err!(&logger, "Not enough GPU memory!");
+                            *control_flow = ControlFlow::Exit;
+                        }
+                        RenderError::GraphicsDeviceNotResponding => {
+                            rwlog::warn!(&logger, "Graphics device not responding.");
+                        }
                     }
-                    Err(RenderError::OutOfMemory) => {
-                        rwlog::rel_err!(&logger, "Not enough GPU memory!");
-                        *control_flow = ControlFlow::Exit;
-                    }
-                    Err(RenderError::GraphicsDeviceNotResponding) => {
-                        rwlog::warn!(&logger, "Graphics device not responding.");
-                    }
-                };
+                }
             }
             Event::MainEventsCleared => {
                 window.request_redraw();
